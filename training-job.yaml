@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: training-job
+
+spec:
+  backoffLimit: 0
+
+  template:
+    spec:
+      restartPolicy: Never
+
+      securityContext:
+        runAsUser: 0
+
+      volumes:
+        - name: code
+          hostPath:
+            path: /home/dgx-s-bmu-soet-230535/my-app
+
+        - name: data
+          hostPath:
+            path: /home/dgx-s-bmu-soet-230535/my-data
+
+        - name: workspace
+          hostPath:
+            path: /home/dgx-s-bmu-soet-230535/my-output 
+
+      containers:
+        - name: trainer
+          image: pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Installing dependencies..."
+              pip install --no-cache-dir --target=/tmp/deps --upgrade -r /app/requirements.txt
+              export PYTHONPATH=/tmp/deps:$PYTHONPATH
+
+              echo "Starting training..."
+              python /app/train.py
+
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+              nvidia.com/mig-2g.35gb: 1
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+              nvidia.com/mig-2g.35gb: 1
+
+          volumeMounts:
+            - name: code
+              mountPath: /app
+
+            - name: data
+              mountPath: /data
+
+            - name: workspace
+              mountPath: /workspace
